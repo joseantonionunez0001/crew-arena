@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lista de tareas</title>
+  <style>
+    :root {
+      --bg: #121212;
+      --panel: #1e1e1e;
+      --text: #e6e6e6;
+      --muted: #8a8a8a;
+      --accent: #4f8cff;
+      --danger: #ff5c5c;
+      --border: #2c2c2c;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: var(--bg);
+      color: var(--text);
+      font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+      display: flex;
+      justify-content: center;
+      padding: 48px 16px;
+    }
+    main { width: 100%; max-width: 480px; }
+    h1 { margin: 0 0 20px; font-size: 28px; font-weight: 600; }
+    form { display: flex; gap: 8px; margin-bottom: 20px; }
+    input[type="text"] {
+      flex: 1;
+      min-width: 0;
+      padding: 12px 14px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: var(--panel);
+      color: var(--text);
+      font-size: 16px;
+    }
+    input[type="text"]:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+    button {
+      padding: 12px 16px;
+      border: none;
+      border-radius: 8px;
+      background: var(--accent);
+      color: #fff;
+      font-size: 15px;
+      cursor: pointer;
+    }
+    button:hover { filter: brightness(1.1); }
+    button:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
+    ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+    li {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px 14px;
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+    }
+    li input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--accent); cursor: pointer; }
+    li span { flex: 1; word-break: break-word; }
+    li.done span { text-decoration: line-through; color: var(--muted); }
+    .delete {
+      background: transparent;
+      color: var(--danger);
+      padding: 4px 8px;
+      font-size: 18px;
+      line-height: 1;
+    }
+    .empty { color: var(--muted); text-align: center; padding: 24px 0; }
+    footer {
+      margin-top: 16px;
+      color: var(--muted);
+      font-size: 14px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .link { background: transparent; color: var(--muted); padding: 4px 0; font-size: 14px; }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Lista de tareas</h1>
+    <form id="form">
+      <input type="text" id="input" placeholder="Nueva tarea..." aria-label="Nueva tarea" autocomplete="off" required>
+      <button type="submit">Agregar</button>
+    </form>
+    <ul id="list"></ul>
+    <p id="empty" class="empty" hidden>No hay tareas. ¡Agrega una!</p>
+    <footer>
+      <span id="count"></span>
+      <button type="button" class="link" id="clear">Borrar completadas</button>
+    </footer>
+  </main>
+
+  <script>
+    const STORAGE_KEY = "tareas-v1";
+    let tasks = load();
+
+    const form = document.getElementById("form");
+    const input = document.getElementById("input");
+    const list = document.getElementById("list");
+    const empty = document.getElementById("empty");
+    const count = document.getElementById("count");
+    const clearBtn = document.getElementById("clear");
+
+    function load() {
+      try {
+        const data = JSON.parse(localStorage.getItem(STORAGE_KEY));
+        return Array.isArray(data) ? data : [];
+      } catch {
+        return [];
+      }
+    }
+
+    function save() {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(tasks));
+    }
+
+    function render() {
+      list.innerHTML = "";
+      tasks.forEach((task) => {
+        const li = document.createElement("li");
+        if (task.done) li.classList.add("done");
+
+        const checkbox = document.createElement("input");
+        checkbox.type = "checkbox";
+        checkbox.checked = task.done;
+        checkbox.setAttribute("aria-label", "Marcar como completada");
+        checkbox.addEventListener("change", () => {
+          task.done = checkbox.checked;
+          save();
+          render();
+        });
+
+        const text = document.createElement("span");
+        text.textContent = task.text;
+
+        const del = document.createElement("button");
+        del.type = "button";
+        del.className = "delete";
+        del.textContent = "×";
+        del.setAttribute("aria-label", "Eliminar tarea");
+        del.addEventListener("click", () => {
+          tasks = tasks.filter((t) => t.id !== task.id);
+          save();
+          render();
+        });
+
+        li.append(checkbox, text, del);
+        list.appendChild(li);
+      });
+
+      empty.hidden = tasks.length > 0;
+      const pending = tasks.filter((t) => !t.done).length;
+      count.textContent = `${pending} pendiente${pending === 1 ? "" : "s"}`;
+      clearBtn.hidden = !tasks.some((t) => t.done);
+    }
+
+    form.addEventListener("submit", (e) => {
+      e.preventDefault();
+      const text = input.value.trim();
+      if (!text) return;
+      tasks.push({ id: Date.now().toString(36) + Math.random().toString(36).slice(2), text, done: false });
+      input.value = "";
+      save();
+      render();
+      input.focus();
+    });
+
+    clearBtn.addEventListener("click", () => {
+      tasks = tasks.filter((t) => !t.done);
+      save();
+      render();
+    });
+
+    render();
+  </script>
+</body>
+</html>
